@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aliado — Sistema de Prompts v2.0</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #252836;
+    --border: #2e3347;
+    --accent: #6c63ff;
+    --accent2: #00d4aa;
+    --accent3: #ff6b6b;
+    --accent4: #ffa94d;
+    --text: #e8eaf0;
+    --text2: #9095a8;
+    --text3: #6b7089;
+    --success: #2ecc71;
+    --warn: #f39c12;
+    --error: #e74c3c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .logo { font-size: 18px; font-weight: 800; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: var(--text2); font-size: 11px; margin-top: 2px; }
+
+  .tabs { display: flex; gap: 2px; padding: 10px 24px 0; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; }
+  .tab { padding: 8px 14px; border-radius: 8px 8px 0 0; cursor: pointer; color: var(--text2); font-size: 12px; font-weight: 600; border: 1px solid transparent; border-bottom: none; transition: all 0.2s; white-space: nowrap; }
+  .tab:hover { color: var(--text); background: var(--surface2); }
+  .tab.active { color: var(--accent); background: var(--bg); border-color: var(--border); }
+
+  .content { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .card-title { font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-purple { background: rgba(108,99,255,0.15); color: var(--accent); border: 1px solid rgba(108,99,255,0.3); }
+  .badge-teal { background: rgba(0,212,170,0.12); color: var(--accent2); border: 1px solid rgba(0,212,170,0.3); }
+  .badge-red { background: rgba(255,107,107,0.12); color: var(--accent3); border: 1px solid rgba(255,107,107,0.3); }
+  .badge-orange { background: rgba(255,169,77,0.12); color: var(--accent4); border: 1px solid rgba(255,169,77,0.3); }
+  .badge-green { background: rgba(46,204,113,0.12); color: var(--success); border: 1px solid rgba(46,204,113,0.3); }
+  .badge-gray { background: rgba(144,149,168,0.12); color: var(--text2); border: 1px solid var(--border); }
+
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: #7c74ff; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(108,99,255,0.3); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-sm { padding: 5px 10px; font-size: 11px; }
+
+  select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+
+  textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 12px; border-radius: 8px; font-size: 13px; font-family: inherit; resize: vertical; line-height: 1.7; }
+  textarea:focus { outline: none; border-color: var(--accent); }
+
+  .result-block { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 12px; position: relative; }
+  .result-block.success { border-left: 3px solid var(--success); }
+  .result-block.corrected { border-left: 3px solid var(--accent4); }
+  .result-block.error { border-left: 3px solid var(--error); }
+  .result-block.loading { border-left: 3px solid var(--accent); }
+  .result-block.qa-pass { border: 2px solid var(--success); background: rgba(46,204,113,0.05); }
+  .result-block.qa-fail { border: 2px solid var(--accent4); }
+  .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 6px; }
+  .result-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
+  .result-text { color: var(--text); line-height: 1.75; font-size: 13px; white-space: pre-wrap; word-break: break-word; }
+
+  .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .pipeline { display: flex; align-items: center; gap: 0; margin-bottom: 20px; overflow-x: auto; padding-bottom: 4px; }
+  .pipe-step { display: flex; flex-direction: column; align-items: center; min-width: 90px; }
+  .pipe-dot { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); background: var(--surface2); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: var(--text3); transition: all 0.3s; }
+  .pipe-dot.active { border-color: var(--accent4); color: var(--accent4); background: rgba(255,169,77,0.1); animation: pulse 1.2s ease infinite; }
+  .pipe-dot.done { border-color: var(--success); color: var(--success); background: rgba(46,204,113,0.1); }
+  .pipe-dot.corrected { border-color: var(--accent4); color: var(--accent4); background: rgba(255,169,77,0.12); }
+  .pipe-dot.qa-pass { border-color: var(--success); color: var(--success); background: rgba(46,204,113,0.15); box-shadow: 0 0 10px rgba(46,204,113,0.3); }
+  .pipe-dot.error { border-color: var(--error); color: var(--error); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  .pipe-label { font-size: 10px; color: var(--text3); margin-top: 4px; text-align: center; max-width: 85px; }
+  .pipe-arrow { color: var(--border); font-size: 18px; margin: 0 2px; padding-bottom: 18px; }
+
+  .accordion { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
+  .accordion-header { padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: var(--surface2); font-weight: 600; font-size: 13px; user-select: none; }
+  .accordion-header:hover { background: var(--surface); }
+  .accordion-body { display: none; padding: 16px; background: var(--bg); border-top: 1px solid var(--border); }
+  .accordion-body.open { display: block; }
+
+  .copy-btn { cursor: pointer; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text3); font-size: 11px; transition: all 0.2s; }
+  .copy-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  .status-bar { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); margin-bottom: 16px; flex-wrap: wrap; }
+
+  /* Upload zone */
+  .upload-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 24px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--surface2); }
+  .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); background: rgba(108,99,255,0.05); }
+  .upload-zone .icon { font-size: 32px; margin-bottom: 8px; }
+  .upload-zone p { color: var(--text2); font-size: 13px; }
+  .upload-zone strong { color: var(--accent); }
+  #file-input { display: none; }
+
+  .trans-box { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-size: 12px; color: var(--text2); line-height: 1.6; max-height: 180px; overflow-y: auto; font-family: 'Courier New', monospace; }
+
+  .qa-banner { padding: 14px 18px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .qa-banner.approved { background: rgba(46,204,113,0.12); border: 1px solid rgba(46,204,113,0.4); color: var(--success); }
+  .qa-banner.adjusted { background: rgba(255,169,77,0.1); border: 1px solid rgba(255,169,77,0.35); color: var(--accent4); }
+
+  .diff-tag { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-left: 6px; }
+  .diff-original { background: rgba(255,107,107,0.15); color: var(--accent3); }
+  .diff-corrected { background: rgba(0,212,170,0.15); color: var(--accent2); }
+  .diff-unchanged { background: rgba(144,149,168,0.1); color: var(--text3); }
+
+  .section-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .section-sub { color: var(--text2); font-size: 12px; margin-bottom: 16px; }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">⚡ Aliado — Sistema de Prompts v2.0</div>
+    <div class="subtitle">Pipeline com QA Automático · LeroyMerlin · OC · Usaflex · Raviera</div>
+  </div>
+  <div style="font-size:11px;color:var(--text3)">P0→P4 → P5 concilia → reescreve → QA final</div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('test',this)">🧪 Executar</div>
+  <div class="tab" onclick="switchTab('prompts',this)">📋 Prompts</div>
+  <div class="tab" onclick="switchTab('history',this)">📊 Histórico</div>
+  <div class="tab" onclick="switchTab('funil',this)">🔽 Funil</div>
+</div>
+
+<!-- ═══════════════════════ TAB: EXECUTAR ═══════════════════════ -->
+<div class="content tab-content active" id="tab-test">
+
+  <!-- Pipeline visual -->
+  <div class="pipeline" id="pipeline">
+    <div class="pipe-step"><div class="pipe-dot" id="pdot-0">P0</div><div class="pipe-label">Feedback</div></div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step"><div class="pipe-dot" id="pdot-1">P1</div><div class="pipe-label">Não Conversão</div></div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step"><div class="pipe-dot" id="pdot-2">P2</div><div class="pipe-label">Produtos</div></div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step"><div class="pipe-dot" id="pdot-3">P3</div><div class="pipe-label">Pts Fortes</div></div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step"><div class="pipe-dot" id="pdot-4">P4</div><div class="pipe-label">Funil</div></div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step"><div class="pipe-dot" id="pdot-5">P5a</div><div class="pipe-label">Concilia + Reescreve</div></div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-step"><div class="pipe-dot" id="pdot-6">P5b</div><div class="pipe-label">QA Final</div></div>
+  </div>
+
+  <!-- Source selector -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">📥 Fonte da Transcrição</div>
+
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="btn btn-secondary btn-sm" id="src-sample-btn" onclick="setSource('sample')" style="border-color:var(--accent);color:var(--accent)">📋 Usar amostra</button>
+      <button class="btn btn-secondary btn-sm" id="src-upload-btn" onclick="setSource('upload')">📂 Upload de arquivo</button>
+      <button class="btn btn-secondary btn-sm" id="src-paste-btn" onclick="setSource('paste')">✏️ Colar texto</button>
+    </div>
+
+    <!-- Sample source -->
+    <div id="source-sample">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <select id="sel-client" onchange="updateCases()">
+          <option value="LeroyMerlin">🏗️ Leroy Merlin</option>
+          <option value="OC">👓 Óticas Carol</option>
+          <option value="Usaflex">👟 Usaflex</option>
+          <option value="Raviera">🚗 Raviera</option>
+        </select>
+        <select id="sel-case" onchange="updateTransPreview()"></select>
+      </div>
+    </div>
+
+    <!-- Upload source -->
+    <div id="source-upload" style="display:none">
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()" 
+           ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+        <div class="icon">📄</div>
+        <p><strong>Clique para selecionar</strong> ou arraste um arquivo aqui</p>
+        <p style="margin-top:4px;font-size:11px;color:var(--text3)">Aceita: .txt, .csv, .json, .vtt ou qualquer arquivo de texto</p>
+      </div>
+      <input type="file" id="file-input" accept=".txt,.csv,.json,.vtt,.srt,.xml,.md" onchange="handleFileUpload(event)">
+      <div id="upload-status" style="margin-top:8px;font-size:12px;color:var(--text2)"></div>
+    </div>
+
+    <!-- Paste source -->
+    <div id="source-paste" style="display:none">
+      <textarea id="paste-area" rows="6" placeholder="Cole aqui a transcrição do atendimento...&#10;&#10;Formato aceito: qualquer texto com diálogo (ex: 'speaker_0:', 'Vendedor:', timestamps, etc.)" oninput="updatePastePreview()"></textarea>
+    </div>
+
+    <!-- Preview -->
+    <div style="margin-top:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Prévia da transcrição</div>
+      <div class="trans-box" id="trans-preview">Selecione ou cole uma transcrição.</div>
+    </div>
+  </div>
+
+  <!-- Run bar -->
+  <div class="status-bar">
+    <button class="btn btn-primary" onclick="runFullPipeline()" id="btn-run">
+      ▶ Executar Pipeline Completo
+    </button>
+    <div id="run-status" style="font-size:12px;color:var(--text2)"></div>
+  </div>
+
+  <!-- Results -->
+  <div id="test-results"></div>
+</div>
+
+<!-- ═══════════════════════ TAB: PROMPTS ═══════════════════════ -->
+<div class="content tab-content" id="tab-prompts">
+  <div class="section-title">Sistema de Prompts</div>
+  <div class="section-sub">Edite qualquer prompt — as alterações são aplicadas imediatamente nos próximos testes.</div>
+  <div id="prompts-list"></div>
+</div>
+
+<!-- ═══════════════════════ TAB: HISTÓRICO ═══════════════════════ -->
+<div class="content tab-content" id="tab-history">
+  <div class="section-title">Histórico de Testes</div>
+  <div class="section-sub">Todos os pipelines executados nesta sessão.</div>
+  <div id="results-history"><div style="color:var(--text2);font-size:13px">Nenhum teste executado ainda.</div></div>
+</div>
+
+<!-- ═══════════════════════ TAB: FUNIL ═══════════════════════ -->
+<div class="content tab-content" id="tab-funil">
+  <div class="section-title">🔽 Funil Padrão de Vendas</div>
+  <div class="section-sub">Mapeado a partir da análise de 50–100 atendimentos reais por cliente.</div>
+  <div class="grid2">
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title">🏗️ Leroy Merlin · 👓 OC · 👟 Usaflex — Varejo Geral</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border-left:3px solid var(--accent);font-size:13px"><strong>E1</strong> Abordagem e rapport</div>
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border-left:3px solid var(--accent);font-size:13px"><strong>E2</strong> Sondagem de necessidade</div>
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border-left:3px solid var(--accent);font-size:13px"><strong>E3</strong> Apresentação de produto/solução</div>
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border-left:3px solid var(--accent);font-size:13px"><strong>E4</strong> Ancoragem de preço e parcelamento</div>
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border-left:3px solid var(--accent);font-size:13px"><strong>E5</strong> Tratamento de objeções</div>
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border-left:3px solid var(--accent);font-size:13px"><strong>E6</strong> Fechamento</div>
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border-left:3px solid var(--accent);font-size:13px"><strong>E7</strong> Pós-venda / Fidelização</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title">🚗 Raviera — Concessionária</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border-left:3px solid var(--accent2);font-size:13px"><strong>E1</strong> Recepção e rapport</div>
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border-left:3px solid var(--accent2);font-size:13px"><strong>E2</strong> Qualificação de perfil e necessidades</div>
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border-left:3px solid var(--accent2);font-size:13px"><strong>E3</strong> Walk-around / Apresentação do veículo</div>
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border-left:3px solid var(--accent2);font-size:13px"><strong>E4</strong> Test drive</div>
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border-left:3px solid var(--accent2);font-size:13px"><strong>E5</strong> Avaliação do seminovo / trade-in</div>
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border-left:3px solid var(--accent2);font-size:13px"><strong>E6</strong> Proposta financeira</div>
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border-left:3px solid var(--accent2);font-size:13px"><strong>E7</strong> Negociação / tratamento de objeções</div>
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border-left:3px solid var(--accent2);font-size:13px"><strong>E8</strong> Fechamento / assinatura</div>
+          <div style="padding:8px 12px;background:var(--bg);border-radius:6px;border-left:3px solid var(--accent2);font-size:13px"><strong>E9</strong> Entrega e pós-venda</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// TEST DATA
+// ═══════════════════════════════════════════════════════════════════════
+const TEST_CASES = {
+  LeroyMerlin: [
+    { id:1, label:"Ana · Bancos de feira · Venda concluída (11min)", transcription:`00m02s speaker_0: Como é o nome do senhor?00m03s speaker_1: Décio.00m04s speaker_0: Seu Décio, meu nome é Ana, tá bom? Deixa eu ver aqui como é que o senhor viu aqui. Ah, essa é exclusivo site. Deixa eu ver aqui a nossa, como é que tá no site.00m17s speaker_2: Tudo bem.00m18s speaker_0: Vou olhar aqui. Na verdade, ela é trezentos e quarenta e nove. Eu vou ver como é que tá o preço dela aqui.00m25s speaker_2: Aquela lá de cima é mais alta?00m27s speaker_0: Não, é a mesma coisa, só muda só a cor. Que lá é preta e aqui a gente tem a branca, né? Aí tem uma que é menorzinha.00m42s speaker_1: Tô querendo essa de um e oitenta.00m44s speaker_0: É, um e oitenta e três, um e oitenta, ó. É porque essa que o senhor pesquisou aí, seu Décio, ela é exclusivo site. Mas aí eu olho a nossa, como é que tá.01m03s speaker_1: Tá. Se for num preço bom, aí eu vou levar duas.01m06s speaker_0: Não, vai tá um preço bom. Ó, dá pra fazer trezentos e nove.01m18s speaker_1: Vixe!01m19s speaker_0: E ainda o senhor consegue parcelar em seis vezes sem juros ou faz o cartão da loja e divide em dez. Cartão da loja não tem anuidade.01m43s speaker_1: Duzentos e pouco eu tinha visto.01m44s speaker_0: É, a oferta só valia até dia 29/03. Aí hoje já é dia primeiro. A oferta dela já acabou. Mas aqui saiu de trezentos e setenta e dois para trezentos e nove. Tirou bastante. E se cê fazer o pedido online às vezes demora até quinze dias pra chegar.02m25s speaker_1: É. Cê prefere que cor? Eu prefiro branca, fica mais limpesa.02m32s speaker_0: Qual é lá o ambiente que vocês vão colocar?02m34s speaker_1: A gente mexe com bolo.02m37s speaker_0: Bolo? Ah, branca fica melhor! Branca com toalha rosa fica uma graça pra feira de mulheres empreendedoras.03m00s speaker_1: Fechou, pode ir separando os dois bancos brancos.03m05s speaker_0: Perfeito, seu Décio! Vou separar os dois de um e oitenta. Quer levar hoje?03m10s speaker_1: Hoje mesmo.` },
+    { id:2, label:"Ana · Cadeira rattan · Não converteu (6min)", transcription:`00m01s speaker_0: Olá, bom dia, tudo bem?00m04s speaker_1: Tudo.00m04s speaker_0: Meu nome é Ana, e o da senhora?00m06s speaker_1: Abadia.00m07s speaker_0: Dona Abadia, tá olhando o nosso conjunto, ou...?00m10s speaker_1: Não, não, a sua cadeira.00m11s speaker_0: A cadeira, nossa, ela é maravilhosa-00m13s speaker_1: Mas ela é frágil.00m15s speaker_0: Frágil, assim como a senhora achou frágil?00m17s speaker_1: Sento não, ela balança.00m18s speaker_0: Nããão, a estrutura dela é bem reforçada. Ela quando fica lá na residência da senhora fica estável.00m27s speaker_0: Eu tenho uma mais altinha, a senhora viu ali um modelo preto?00m34s speaker_1: Sim. É mais cara.00m36s speaker_0: É um pouquinho mais cara mas também pode parcelar no cartão da loja. Também tem a promoção Bota Fora aqui.01m10s speaker_1: Tem entrega?01m12s speaker_0: Tem, a gente entrega sim. Mas demora uns dois dias úteis. A senhora veio de carro?01m22s speaker_1: Não, de ônibus.01m24s speaker_0: Ah tá... Olha, deixa eu te dar meu cartão, a senhora pensa e me liga depois.01m45s speaker_1: Tá bom.` },
+    { id:3, label:"Everlane · Extintor · Venda rápida (2min)", transcription:`00m00s speaker_0: Olá, bom dia, tudo bem?00m06s speaker_1: Max. Extintor de incêndio. Comprei aqui uns dois anos atrás e preciso recarregar.00m16s speaker_0: Extintor a gente não trabalha com recarga aqui na loja, mas a gente tem extintor novo. Qual era o tipo do seu?00m22s speaker_1: Pó BC.00m24s speaker_0: Pó BC, temos aqui. Esse aqui de 4kg tá R$79,90. Ou o de 6kg que é R$119.00m32s speaker_1: Qual você recomenda?00m34s speaker_0: Para uso residencial, o de 4kg já está ótimo.00m38s speaker_1: Tá bom, pego o de 4kg.00m42s speaker_0: Perfeito. Vou te levar ao caixa.` }
+  ],
+  OC: [
+    { id:1, label:"Andreia · Pós-catarata · Venda concluída (37min)", transcription:`00m00s speaker_0: Bom dia, tudo bem? Posso ajudar?00m04s speaker_1: Eu quero fazer um óculos, mas bem simples, porque não é definitivo. Acabei de operar catarata.00m11s speaker_0: Catarata? O senhor quer só pra longe enquanto resolve?00m19s speaker_1: Isso. A receita ele me falou: faz um pra longe. Lente simples, pra depois fazer a multifocal.00m32s speaker_0: Entendo. Como que é o seu nome?00m47s speaker_1: Messias.00m48s speaker_0: Messias? E o da senhora?00m51s speaker_2: Marilu. Prazer.00m55s speaker_0: Prazer, eu sou a Andreia. Seu Messias, a armação a gente precisa avisar que corre o risco de quebra na montagem se for usada. Na hora de encaixar a lente eles fazem uma pressão.01m35s speaker_2: Essa lente, eu arranquei e ela resistiu.01m52s speaker_0: Aí tá na garantia, fica mais tranquilo. E quando compra aqui, se quebrar no laboratório a gente resolve. Então o senhor quer lente com antirreflexo, filtro de luz azul?02m21s speaker_1: Esse não. Agora, o definitivo, sim.02m24s speaker_0: Tá. Então vamos fazer o mais simples agora. R$108 o par de lente. O senhor tem a receita?02m45s speaker_1: Tenho aqui.02m47s speaker_0: Pode passar. Aí eu mando pro laboratório hoje e fica pronto em 3 a 5 dias úteis. Pode parcelar em até 10x sem juros.03m15s speaker_1: Tá ótimo. Fecha então.03m20s speaker_0: Perfeito! Vou imprimir o pedido agora. Seu WhatsApp pra avisar quando ficar pronto?` },
+    { id:2, label:"Karoline · Ray-Ban marrom · Ruptura estoque (2min)", transcription:`00m04s speaker_0: Posso ajudar?00m06s speaker_1: Eu queria óculos da Ray-Ban.00m08s speaker_0: Da Ray-Ban? Pode me acompanhar. Procura algum modelinho específico?00m24s speaker_1: Aquele redondo de acetato.00m25s speaker_0: Redondo de acetato?00m26s speaker_1: Só de acetato.00m27s speaker_0: Ó, temos esses aqui.00m29s speaker_1: Quero aquele marrom.00m30s speaker_0: Marrom? Deixa eu ver. Hmm, não localizei o marrom no estoque agora. Mas temos nude e tartaruga. A senhora ficaria interessada?01m22s speaker_1: Ah, não. Era especificamente o marrom.01m25s speaker_0: Entendo. Posso anotar seu contato para avisar quando chegar?01m28s speaker_1: Sim, pode anotar.` },
+    { id:3, label:"Marcela · Miopia pós-cirurgia · Venda concluída (12min)", transcription:`00m00s speaker_0: Boa tarde! Meu nome é Marcela. Qual o seu nome?00m03s speaker_1: Débora.00m05s speaker_0: Débora, o que que você procura hoje?00m08s speaker_1: Ah, fiz cirurgia de miopia mas voltou. Então preciso de óculos de grau.00m14s speaker_0: Entendo. Tem receita?00m16s speaker_1: Tenho sim. Aqui.00m19s speaker_0: Grau baixo ainda. Você prefere algum estilo? Gatinho, redondo, quadrado?00m27s speaker_1: Gosto de coisa mais moderna, gatinho talvez.00m30s speaker_0: Olha esse aqui, tartaruga, tá super em alta. Esse é a Kipling, marca muito boa.00m50s speaker_1: Quanto é?00m51s speaker_0: Essa com a lente Kodak com filtro de luz azul e antirreflexo fica R$241.01m00s speaker_1: Hmm. Tem alguma coisa mais simples?01m03s speaker_0: Tem, pode ver essa aqui. Fica R$180 com lente básica. E essa quadradinha também, R$220 com Kodak.01m15s speaker_1: Esse quadradinho é bonito.01m17s speaker_0: É muito na moda. Com a Kodak e filtro azul fica R$220. Você quer levar esse?01m32s speaker_1: Vou levar.` }
+  ],
+  Usaflex: [
+    { id:1, label:"Bia · Célia · Múltiplos pares + cross-sell (51min)", transcription:`01m06s speaker_1: Olá, bom dia.01m19s speaker_0: Queria uma sandália bem parecida com essa. Que essa minha tá derretendo já.01m25s speaker_1: Claro, qual número?01m26s speaker_0: Trinta e nove.01m53s speaker_1: Tenho o mesmo modelo em outras cores. Onça, dourado, azul marinho.02m55s speaker_0: Essa de azul marinho tá bonitinha, né? Não tem nada com duas tiras mais larga?02m59s speaker_1: Tem esse outro aqui, muito confortável, sola antiderrapante.03m30s speaker_0: Esse eu gostei. Posso provar? Trinta e oito e meio.03m45s speaker_1: Toma aqui. Como tá?04m00s speaker_0: Perfeito. Vou levar esse. E tem bolsa?04m05s speaker_1: Temos sim. Olha que linda essa aqui.04m20s speaker_0: Que coisa mais linda. Qual o preço?04m22s speaker_1: R$189. E tem cashback de 10%.04m28s speaker_0: Então tô levando a bolsa também. E aquela sandália onça que cê mostrou, tem o 39?04m40s speaker_1: Esse tem!04m42s speaker_0: Então me traz.05m00s speaker_0: Perfeita. Tô levando os três então.` },
+    { id:2, label:"Camilly · Márcia · Ruptura preto · Gel vendido (20min)", transcription:`00m00s speaker_0: Ó, sem cadarço, só com um cadarço de enfeite.00m04s speaker_1: Mas é preto?00m05s speaker_0: Eu dou uma olhada se eu tenho o preto. Pode ser que eu tenha, Márcia, pra encomendar no preto.00m11s speaker_1: Não, é que eu vim aqui, porque o meu filho tá na clínica e eu dei uma volta.00m15s speaker_0: Cê precisa pra agora?00m20s speaker_1: Pois é, não é urgente não.00m30s speaker_0: Não filha, preto não tem. Mas tenho azul marinho e camurça que tá super na moda. Topa ver?00m45s speaker_1: Deixa eu ver a camurça.00m52s speaker_1: Trinta e nove.01m00s speaker_0: Essa camurça tá R$229, mas tem cashback de 10%, então fica R$206.01m15s speaker_1: Mas eu precisaria do preto mesmo.01m18s speaker_0: Entendo. Olha, enquanto decide, esse gel limpador de couro é incrível, deixa o calçado como novo. R$29,90.01m32s speaker_1: Ah, esse eu levo.01m38s speaker_1: Só o gel por enquanto.` },
+    { id:3, label:"Bia · Maria Alice · Tênis + sapatilha (22min)", transcription:`00m00s speaker_0: Oi! Boa tarde, Maria Alice! Procurando tênis?00m07s speaker_1: É, um tênis e uma sapatilha também.00m10s speaker_0: Número?00m11s speaker_1: 37. Esse onça aqui, cê tem?00m14s speaker_0: Esse tem! Vem cá. Esse modelo é nosso carro-chefe, super confortável.00m22s speaker_1: Tô adorando. E sapatilha?00m24s speaker_0: Sapatilha temos esse redondinho e esse modelo mais aberto.00m45s speaker_1: Esse fechado tá ótimo.01m00s speaker_0: Então vamos com os dois? E viu a carteira? Você ganha cashback em tudo.01m15s speaker_1: Ai, mostrar a carteira. Linda. Mas não hoje.01m24s speaker_0: Tá bom. Fechamos os 3 calçados então?01m26s speaker_1: Fecha!` }
+  ],
+  Raviera: [
+    { id:1, label:"Weskley · Seu Gilson · Nissan Kicks · PCD (18min)", transcription:`00m00s speaker_0: Bom dia, seu Gilson, tudo bom?00m15s speaker_1: Bom dia!00m15s speaker_0: Prazer, meu nome é Weskley, bem-vindo à Riviera.00m22s speaker_0: Eu tô usando um microfone aqui. Pode continuar gravando? Seus dados são preservados. É pra melhorar o atendimento.00m48s speaker_1: Tá bom.00m49s speaker_0: O que que o senhor procura hoje num carro que não pode faltar?01m00s speaker_1: Na verdade, eu não pensei nisso, não.01m06s speaker_1: Conforto, né?01m07s speaker_0: Sim. O senhor quer beber uma água, um café?01m45s speaker_1: Não, tudo bem!01m45s speaker_0: Então, deixa eu apresentar o Kicks, na versão Sense, que é a versão de entrada. Já tem faróis em LED, piloto automático adaptativo, rodas de liga leve aro dezessete, chave presencial.02m44s speaker_1: Nós passamos em quatro pessoas. Minha filha e minha moça.02m49s speaker_0: O porta-mala é de 300 litros. Muito bom pra família. O senhor sabe me dizer se a esposa tem alguma deficiência?03m10s speaker_1: Tem sim, ela tem artrose no quadril.03m15s speaker_0: Então o senhor pode ter benefício PCD. Desconto de IPI que chega até R$8.000 no Kicks. Vou preparar uma simulação. E o test drive, o senhor tem tempo hoje?04m00s speaker_1: Hoje não, tenho reunião.04m02s speaker_0: Sem problema. Posso ligar amanhã cedo pra agendar? E o senhor tem algum seminovo pra avaliação?04m10s speaker_1: Tenho um Corolla 2019.04m12s speaker_0: Ótimo. Vou incluir a avaliação na proposta. Confirma seu WhatsApp?` },
+    { id:2, label:"Carol · Honda City trade-in · Sem fechamento (13min)", transcription:`00m08s speaker_1: A Fipe do Honda City lá de novo. Deixa eu pegar sua placa.00m13s speaker_0: SMA 8E65.00m24s speaker_1: Honda City EX 2021. Deixa eu puxar o modelo. A FIPE tá em R$72.000.00m56s speaker_0: Ahh, eu achava que era menos.01m00s speaker_1: É, o Honda City segurou bem o valor.01m05s speaker_0: Eu queria um Creta. Quanto seria a diferença?01m10s speaker_1: Creta Comfort com entry R$119.000. Menos R$72.000 do seu carro, daria uns R$47.000 a financiar.01m25s speaker_0: Nossa, é bastante. Tem taxa zero?01m28s speaker_1: Tem taxa zero em 12x pelo banco Hyundai.01m35s speaker_0: Hmm. Deixa eu pensar. Vou ver outras opções também.01m40s speaker_1: Claro. Posso te enviar a proposta por WhatsApp?01m44s speaker_0: Pode.` },
+    { id:3, label:"Murilo · Adriana · HB20 sedan · Test drive agendado (27min)", transcription:`00m04s speaker_0: Olá, Adriana. Prazer, meu nome é Murilo. Seja muito bem-vinda!00m17s speaker_1: Eu queria ver pra trocar meu carro.00m25s speaker_1: Um Sandero 2018.00m28s speaker_0: A Adriana veio ver o HB20. Hatch ou sedan?00m35s speaker_1: Qual que cê me recomenda?00m37s speaker_0: Depende do uso. A senhora usa mais pra cidade ou viagem?00m40s speaker_1: Cidade, mas às vezes viagem.00m43s speaker_0: O hatch é mais ágil na cidade. O sedan tem porta-mala maior, melhor em viagem. Qual o seu número de passageiros normalmente?00m52s speaker_1: Eu, meu marido e dois filhos.00m55s speaker_0: Então o sedan pode ser interessante. Vamos ver os dois? Esse aqui é o HB20 hatch. E ali o sedan. Qual você gostou esteticamente?01m20s speaker_1: O sedan. Mais bonito.01m22s speaker_0: Ótimo. A câmera de ré já nessa versão. Central multimídia com Apple CarPlay. Assistente de manutenção de faixa.01m40s speaker_1: Muito bom.01m42s speaker_0: Seu Sandero a gente avalia. 2018 completo... R$43.000 na FIPE. O sedan aqui tá R$89.000. Quer fazer o test drive?02m05s speaker_1: Quero sim.02m08s speaker_0: Ótimo! Quando a senhora teria disponibilidade? Sábado de manhã?02m12s speaker_1: Sábado tá bom.` }
+  ]
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// PROMPTS (editável)
+// ═══════════════════════════════════════════════════════════════════════
+const PROMPTS = [
+  {
+    id:0, key:"feedback", label:"P0 — Feedback de Desempenho", badge:"badge-purple", color:"#6c63ff",
+    description:"Análise geral com pontos fortes e pontos de melhoria. Exige evidências da transcrição.",
+    system:`Você é um especialista em treinamento de equipes de vendas no varejo brasileiro. Analise a transcrição de um atendimento e gere um feedback construtivo e acionável para o vendedor.
+
+REGRAS CRÍTICAS:
+1. Identifique se a venda foi concluída (Sim/Não) com base APENAS na transcrição.
+2. Se o atendimento for muito curto (<50 palavras) ou claramente não comercial, indique isso brevemente. Não force análise.
+3. Máximo 3 pontos fortes e 3 pontos a melhorar. Seja objetivo.
+4. Cada ponto deve ter: (a) evidência direta da transcrição e (b) sugestão prática de como aplicar.
+5. Nunca invente informações fora da transcrição.
+6. Tom: coach motivador, não auditor.
+
+ESTRUTURA OBRIGATÓRIA:
+Venda concluída? [Sim/Não]
+Resumo: [2-3 linhas]
+
+✅ Pontos fortes:
+- [Nome]: [Evidência] → [Por que funcionou]
+
+📌 Pontos a melhorar:
+- [Nome]: [O que faltou] → [Como fazer na prática]`,
+    user:`Analise o atendimento abaixo e gere feedback para o vendedor (speaker_0 ou o vendedor identificado):
+
+TRANSCRIÇÃO:
+{transcription}`
+  },
+  {
+    id:1, key:"nao_conversao", label:"P1 — Motivos de Não Conversão", badge:"badge-red", color:"#ff6b6b",
+    description:"Classifica o motivo de não fechamento usando taxonomia padronizada de 10 categorias.",
+    system:`Você é especialista em análise de funil de vendas no varejo brasileiro. Analise a transcrição e identifique o(s) motivo(s) de não conversão.
+
+TAXONOMIA PADRÃO (use sempre esses códigos):
+1. PRECO — Cliente achou caro ou não concordou com custo-benefício
+2. RUPTURA_ESTOQUE — Produto desejado indisponível (cor, tamanho, modelo)
+3. PRAZO_ENTREGA — Prazo não atende urgência do cliente
+4. FALTA_PRODUTO — Produto não existe no mix/catálogo
+5. INDECISAO_CLIENTE — Cliente quer pensar, comparar ou consultar terceiros
+6. OBJECAO_NAO_TRATADA — Vendedor não reverteu uma objeção específica
+7. FECHAMENTO_NAO_TENTADO — Vendedor não conduziu para o fechamento
+8. CLIENTE_NAO_QUALIFICADO — Não era decisor ou sem intenção real de compra
+9. CONCORRENCIA — Cliente preferiu concorrente
+10. ATENDIMENTO_NAO_COMERCIAL — Não era atendimento de venda real
+
+REGRAS:
+- Se a venda FOI concluída: "Status: VENDA_CONCLUIDA — Análise de não conversão não aplicável."
+- Selecione 1 a 3 motivos em ordem de relevância.
+- Para cada motivo, cite evidência exata da transcrição.
+- Indique oportunidade perdida: o que o vendedor poderia ter feito diferente.
+
+ESTRUTURA:
+Status: [VENDA_CONCLUIDA / NAO_CONVERTIDA]
+Motivo principal: [CÓDIGO] — [descrição em 1 linha]
+Motivo(s) secundário(s): [CÓDIGO] — [descrição] (se houver)
+Evidência: "[trecho exato da transcrição]"
+Oportunidade perdida: [Ação concreta que poderia ter revertido]`,
+    user:`Identifique os motivos de não conversão no atendimento abaixo:
+
+TRANSCRIÇÃO:
+{transcription}`
+  },
+  {
+    id:2, key:"produtos_ruptura", label:"P2 — Produtos e Rupturas", badge:"badge-orange", color:"#ffa94d",
+    description:"Mapeia todos os produtos do atendimento e detecta rupturas de estoque.",
+    system:`Você é especialista em gestão de estoque e análise de mix de produtos no varejo brasileiro.
+
+STATUS DE PRODUTO (use exatamente esses códigos):
+- VENDIDO — item efetivamente comprado
+- DISPONIVEL — mencionado e disponível, não comprado
+- RUPTURA_CONFIRMADA — vendedor explicitamente diz que não tem
+- RUPTURA_SUSPEITA — cliente pede algo específico e vendedor desvia sem confirmar
+- ALTERNATIVA_OFERECIDA — produto sem estoque, mas alternativa apresentada
+
+REGRAS:
+- Liste TODOS os produtos mencionados com detalhes (modelo, cor, tamanho, preço se mencionado)
+- Nunca invente produtos não mencionados na transcrição
+- Gere alerta para cada ruptura detectada
+
+ESTRUTURA:
+📦 Produtos do atendimento:
+• [Produto] | [STATUS] | Detalhes: [cor/tamanho/preço] | Contexto: [nota]
+
+🚨 Alertas de ruptura:
+• [Produto]: [CÓDIGO] — "[evidência da transcrição]"
+
+💰 Produtos vendidos:
+• [Lista do que foi comprado com valores se disponíveis]
+
+📊 Resumo:
+Mencionados: X | Vendidos: Y | Rupturas confirmadas: Z | Rupturas suspeitas: W`,
+    user:`Analise os produtos e possíveis rupturas no atendimento abaixo:
+
+TRANSCRIÇÃO:
+{transcription}`
+  },
+  {
+    id:3, key:"pontos_fortes", label:"P3 — Pontos Fortes e Conversão", badge:"badge-teal", color:"#00d4aa",
+    description:"Identifica o que funcionou na venda, o momento decisivo e o fator principal de conversão.",
+    system:`Você é especialista em coaching de vendas e psicologia do consumidor no varejo brasileiro.
+
+DIMENSÕES A AVALIAR (avalie apenas as presentes na transcrição, mín. 2):
+1. RAPPORT — Conexão emocional e confiança
+2. SONDAGEM — Qualidade das perguntas e escuta ativa
+3. APRESENTACAO — Clareza e persuasão na demonstração do produto
+4. ANCORAGEM — Uso eficaz de preço, parcelamento e valor percebido
+5. TRATAMENTO_OBJECOES — Capacidade de reverter resistências
+6. FECHAMENTO — Condução para a decisão de compra
+7. CROSS_SELL — Venda adicional de produtos complementares
+8. CONHECIMENTO_PRODUTO — Domínio técnico demonstrado
+
+REGRAS:
+- Para cada ponto forte, cite o trecho exato que evidencia
+- Identifique o "momento decisivo" — ponto que provavelmente determinou o resultado
+- Se a venda NÃO foi concluída, avalie o que funcionou mesmo sem fechar
+- Evite elogios genéricos. Seja específico.
+- Score de 1–5 por dimensão
+
+ESTRUTURA:
+🏆 Pontos fortes identificados:
+[DIMENSÃO] ⭐[score]/5: "[evidência exata]" → Por que funcionou: [explicação]
+
+⚡ Momento decisivo:
+"[trecho exato]" — [Por que esse momento foi determinante]
+
+🎯 Fator principal de conversão (ou quase conversão):
+[O elemento mais importante que influenciou o resultado]`,
+    user:`Analise os pontos fortes e motivos de conversão no atendimento abaixo:
+
+TRANSCRIÇÃO:
+{transcription}`
+  },
+  {
+    id:4, key:"funil", label:"P4 — Etapa do Funil", badge:"badge-green", color:"#2ecc71",
+    description:"Identifica até qual etapa do funil o atendimento chegou e pontua cada etapa.",
+    system:`Você é especialista em metodologia de vendas consultivas no varejo brasileiro.
+
+FUNIS DISPONÍVEIS:
+
+VAREJO_GERAL (moda, calçados, ótica, home center):
+E1 Abordagem → E2 Sondagem → E3 Apresentação → E4 Ancoragem de Preço → E5 Tratamento de Objeções → E6 Fechamento → E7 Pós-venda/Fidelização
+
+CONCESSIONARIA (automóveis):
+E1 Recepção → E2 Qualificação → E3 Walk-around → E4 Test Drive → E5 Avaliação Seminovo → E6 Proposta Financeira → E7 Negociação → E8 Assinatura → E9 Entrega
+
+REGRAS:
+- Escolha o funil correto para o contexto
+- Para cada etapa: REALIZADO (executado bem), PARCIAL (iniciado mas incompleto), NAO_REALIZADO, NAO_APLICAVEL
+- Score por etapa: 0=não feito, 50=parcial, 100=bem executado
+- Cite evidência ou ausência para cada etapa
+- Calcule score médio
+
+ESTRUTURA:
+🔽 Funil: [VAREJO_GERAL / CONCESSIONARIA]
+Última etapa alcançada: [Ex: E5 — Tratamento de Objeções]
+
+Progresso por etapa:
+[E1] [Nome]: [STATUS] | Score: XX/100 | Evidência: "[trecho ou 'não identificado na transcrição']"
+...
+
+📈 Score geral: XX/100
+🎯 Gap crítico: [Próxima etapa não alcançada e o que o vendedor deveria ter feito]`,
+    user:`Analise até qual etapa do funil de vendas este atendimento chegou:
+
+TRANSCRIÇÃO:
+{transcription}`
+  }
+];
+
+// P5 system prompt — conciliation + rewrite
+const P5_SYSTEM = `Você é um analista sênior de QA de performance de vendas. Você receberá 5 análises independentes de um mesmo atendimento (P0 a P4). Sua tarefa é em DUAS ETAPAS:
+
+ETAPA 1 — CONCILIAÇÃO E REESCRITA:
+1. Leia todos os 5 outputs e identifique INCONSISTÊNCIAS (ex: P0 diz venda concluída mas P1 lista motivos de não conversão; P3 cita "ótimo fechamento" mas P4 marca fechamento como NAO_REALIZADO).
+2. Para cada inconsistência encontrada, REESCREVA o trecho conflitante do output problemático, adotando a interpretação mais conservadora e sustentada pela transcrição original.
+3. Se não houver inconsistências, declare "Nenhuma inconsistência detectada."
+4. Gere versões CORRIGIDAS de cada output que teve problema (ou confirme que está OK).
+
+ETAPA 2 — QA FINAL:
+Após as correções, faça um passe de QA final e declare:
+- ✅ QA APROVADO — se todos os outputs são coerentes entre si e com a transcrição
+- ⚠️ QA COM RESSALVAS — se há pontos menores que não invalidam mas merecem atenção
+- ❌ QA REPROVADO — se há contradição grave não resolvível sem nova análise
+
+PESOS DE SCORE FINAL PONDERADO:
+- P0 Feedback: 20%
+- P1 Não conversão: 10%
+- P2 Produtos: 15%
+- P3 Pontos fortes: 25%
+- P4 Funil: 30%
+
+ESTRUTURA OBRIGATÓRIA:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ETAPA 1 — CONCILIAÇÃO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Inconsistências encontradas: [Nenhuma / lista]
+
+[Para cada inconsistência:]
+PROBLEMA em [P?]: [descrição do conflito]
+CORREÇÃO APLICADA: [novo trecho que substitui]
+STATUS P? após correção: [CORRIGIDO / OK_SEM_ALTERACAO]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ETAPA 2 — QA FINAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[✅ QA APROVADO / ⚠️ QA COM RESSALVAS / ❌ QA REPROVADO]
+
+Resultado do atendimento: [VENDA_CONCLUIDA / NAO_CONVERTIDA]
+Score final ponderado: XX/100
+
+Resumo executivo (para o gestor):
+[2-3 parágrafos consolidando os 4 outputs pós-correção]
+
+Ação prioritária para o vendedor:
+[1 ação específica e mensurável]
+
+Insight de gestão:
+[1 observação sobre padrão, treinamento ou produto para o gestor]`;
+
+const P5_USER = `Concilie as análises abaixo do mesmo atendimento e execute o QA em 2 etapas.
+
+P0 — FEEDBACK:
+{p0}
+
+P1 — NÃO CONVERSÃO:
+{p1}
+
+P2 — PRODUTOS E RUPTURAS:
+{p2}
+
+P3 — PONTOS FORTES:
+{p3}
+
+P4 — FUNIL:
+{p4}
+
+TRANSCRIÇÃO ORIGINAL (para referência e arbitragem):
+{transcription}`;
+
+// ═══════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════
+let editedPrompts = PROMPTS.map(p=>({...p}));
+let currentSource = 'sample';
+let uploadedTranscription = '';
+let resultsHistory = [];
+
+// ═══════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════
+function init() {
+  renderPromptsList();
+  updateCases();
+}
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// SOURCE MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════
+function setSource(src) {
+  currentSource = src;
+  ['sample','upload','paste'].forEach(s => {
+    document.getElementById('source-'+s).style.display = s===src ? 'block' : 'none';
+    document.getElementById('src-'+s+'-btn').style.borderColor = s===src ? 'var(--accent)' : 'var(--border)';
+    document.getElementById('src-'+s+'-btn').style.color = s===src ? 'var(--accent)' : 'var(--text)';
+  });
+  updateTransPreview();
+}
+
+function getTranscription() {
+  if (currentSource === 'sample') {
+    const client = document.getElementById('sel-client').value;
+    const idx = parseInt(document.getElementById('sel-case').value || '0');
+    return TEST_CASES[client]?.[idx]?.transcription || '';
+  } else if (currentSource === 'upload') {
+    return uploadedTranscription;
+  } else {
+    return document.getElementById('paste-area').value.trim();
+  }
+}
+
+function updateCases() {
+  const client = document.getElementById('sel-client').value;
+  const sel = document.getElementById('sel-case');
+  sel.innerHTML = (TEST_CASES[client]||[]).map((c,i)=>`<option value="${i}">#${c.id} — ${c.label}</option>`).join('');
+  updateTransPreview();
+}
+
+function updateTransPreview() {
+  const t = getTranscription();
+  const preview = document.getElementById('trans-preview');
+  if (!t) { preview.textContent = 'Nenhuma transcrição selecionada.'; return; }
+  preview.textContent = t.substring(0,600) + (t.length>600 ? '\n\n[...] ('+t.length+' chars total)' : '');
+}
+
+function updatePastePreview() { updateTransPreview(); }
+
+// ═══════════════════════════════════════════════════════════════════════
+// FILE UPLOAD
+// ═══════════════════════════════════════════════════════════════════════
+function handleDragOver(e) { e.preventDefault(); document.getElementById('upload-zone').classList.add('drag-over'); }
+function handleDragLeave(e) { document.getElementById('upload-zone').classList.remove('drag-over'); }
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+function handleFileUpload(e) {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+}
+function processFile(file) {
+  const status = document.getElementById('upload-status');
+  status.textContent = `Lendo ${file.name} (${(file.size/1024).toFixed(1)} KB)...`;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    uploadedTranscription = e.target.result;
+    // Basic cleanup: remove BOM, normalize line endings
+    uploadedTranscription = uploadedTranscription.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+    status.innerHTML = `<span style="color:var(--success)">✓ ${file.name} carregado — ${uploadedTranscription.length} caracteres</span>`;
+    document.getElementById('upload-zone').innerHTML = `<div class="icon">✅</div><p><strong>${file.name}</strong></p><p style="font-size:11px;color:var(--text3)">${uploadedTranscription.length} chars · Clique para trocar</p>`;
+    updateTransPreview();
+  };
+  reader.onerror = () => { status.innerHTML = `<span style="color:var(--error)">Erro ao ler o arquivo.</span>`; };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// PIPELINE
+// ═══════════════════════════════════════════════════════════════════════
+function setPipeDot(idx, state) {
+  const dot = document.getElementById('pdot-'+idx);
+  if (!dot) return;
+  dot.className = 'pipe-dot ' + state;
+  if (state === 'done') dot.textContent = '✓';
+  else if (state === 'corrected') dot.textContent = '✎';
+  else if (state === 'qa-pass') dot.textContent = '★';
+  else if (state === 'error') dot.textContent = '✗';
+  else dot.textContent = ['P0','P1','P2','P3','P4','P5a','P5b'][idx];
+}
+
+function setStatus(msg, color='var(--text2)') {
+  document.getElementById('run-status').innerHTML = `<span style="color:${color}">${msg}</span>`;
+}
+
+async function callClaude(systemPrompt, userPrompt, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      // Calls /api/chat — Vercel serverless proxy that adds the API key server-side
+      const resp = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 1000,
+          system: systemPrompt,
+          messages: [{ role: "user", content: userPrompt }]
+        })
+      });
+
+      if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`HTTP ${resp.status}: ${errText.substring(0, 200)}`);
+      }
+
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+      if (!data.content || !data.content[0]) throw new Error('Resposta vazia da API.');
+      return data.content[0].text;
+
+    } catch (err) {
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 2000));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+function makeResultBlock(p, text, tag) {
+  return `
+    <div class="result-block ${tag}" style="border-left-color:${p.color}">
+      <div class="result-header">
+        <div class="result-title" style="color:${p.color}">
+          ${tag==='corrected' ? '✎ CORRIGIDO — ' : '✓ '}${p.label}
+          ${tag==='corrected' ? '<span class="diff-tag diff-corrected">reescrito pelo P5</span>' : ''}
+        </div>
+        <button class="copy-btn" onclick="navigator.clipboard.writeText(this.dataset.text)" data-text="${escHtml(text).replace(/"/g,'&quot;')}">Copiar</button>
+      </div>
+      <div class="result-text">${escHtml(text)}</div>
+    </div>`;
+}
+
+async function runFullPipeline() {
+  const transcription = getTranscription();
+  if (!transcription || transcription.length < 30) {
+    setStatus('⚠ Adicione uma transcrição válida antes de executar.', 'var(--accent3)');
+    return;
+  }
+
+  const btn = document.getElementById('btn-run');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Executando pipeline...';
+
+  const container = document.getElementById('test-results');
+  container.innerHTML = '';
+
+  // Reset pipeline dots
+  [0,1,2,3,4,5,6].forEach(i => setPipeDot(i,''));
+
+  const outputs = {};
+
+  // ── PHASE 1: P0–P4 — sequencial, um por vez, com feedback visual ──
+  const rawSection = document.createElement('div');
+  rawSection.innerHTML = '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">Outputs brutos P0–P4 <span style="font-weight:400">(antes da conciliação)</span></div>';
+  container.appendChild(rawSection);
+
+  let phase1Failed = false;
+  for (let i = 0; i < editedPrompts.length; i++) {
+    const p = editedPrompts[i];
+    setPipeDot(i, 'active');
+    setStatus('Executando ' + p.label.split('—')[0].trim() + '... (' + (i+1) + '/5)', 'var(--accent4)');
+
+    const placeholder = document.createElement('div');
+    placeholder.className = 'result-block loading';
+    placeholder.style.borderLeft = '3px solid ' + p.color;
+    placeholder.innerHTML = '<div class="result-header"><div class="result-title" style="color:' + p.color + '"><span class="spinner"></span>&nbsp; ' + p.label + '</div></div><div class="result-text" style="color:var(--text3)">Aguardando resposta da API...</div>';
+    rawSection.appendChild(placeholder);
+
+    try {
+      const userMsg = p.user.replace('{transcription}', transcription);
+      const result = await callClaude(p.system, userMsg);
+      outputs[p.key] = result;
+      setPipeDot(i, 'done');
+      // Update placeholder in-place with full result content
+      const tmp = document.createElement('div');
+      tmp.innerHTML = makeResultBlock(p, result, 'success');
+      const newBlock = tmp.firstElementChild;
+      placeholder.parentNode.replaceChild(newBlock, placeholder);
+    } catch(err) {
+      setPipeDot(i, 'error');
+      outputs[p.key] = '[ERRO: ' + err.message + ']';
+      placeholder.className = 'result-block error';
+      placeholder.innerHTML = '<div class="result-header"><div class="result-title" style="color:var(--error)">✗ ' + p.label + '</div></div><div class="result-text" style="color:var(--error)">Erro: ' + escHtml(err.message) + '</div>';
+      phase1Failed = true;
+    }
+  }
+
+  if (phase1Failed) {
+    setStatus('⚠️ Alguns prompts falharam — P5 tentará conciliar com o que tiver.', 'var(--accent4)');
+  }
+
+  // ── PHASE 2: P5a — Conciliation + Rewrite ──────────────────────────
+  setPipeDot(5, 'active');
+  setStatus('Executando P5a — conciliando e reescrevendo outputs...', 'var(--accent4)');
+
+  const p5Block = document.createElement('div');
+  p5Block.className = 'result-block loading';
+  p5Block.innerHTML = `<div class="result-header"><div class="result-title" style="color:#a855f7"><span class="spinner"></span>&nbsp; P5a — Conciliação + Reescrita</div></div><div class="result-text" style="color:var(--text3)">Verificando coerência entre P0–P4 e reescrevendo inconsistências...</div>`;
+  container.appendChild(p5Block);
+
+  let p5Output = '';
+  try {
+    const p5User = P5_USER
+      .replace('{p0}', outputs.feedback)
+      .replace('{p1}', outputs.nao_conversao)
+      .replace('{p2}', outputs.produtos_ruptura)
+      .replace('{p3}', outputs.pontos_fortes)
+      .replace('{p4}', outputs.funil)
+      .replace('{transcription}', transcription.substring(0,3000));
+    p5Output = await callClaude(P5_SYSTEM, p5User);
+    setPipeDot(5, 'corrected');
+    p5Block.className = 'result-block corrected';
+    p5Block.style.borderLeft = '3px solid #a855f7';
+    p5Block.innerHTML = `
+      <div class="result-header">
+        <div class="result-title" style="color:#a855f7">✎ P5a — Conciliação + Reescrita</div>
+        <button class="copy-btn" onclick="navigator.clipboard.writeText(this.dataset.text)" data-text="${escHtml(p5Output).replace(/"/g,'&quot;')}">Copiar</button>
+      </div>
+      <div class="result-text">${escHtml(p5Output)}</div>`;
+  } catch(err) {
+    setPipeDot(5, 'error');
+    p5Block.className = 'result-block error';
+    p5Block.innerHTML = `<div class="result-text" style="color:var(--error)">Erro P5a: ${err.message}</div>`;
+    btn.disabled = false; btn.innerHTML = '▶ Executar Pipeline Completo';
+    return;
+  }
+
+  // ── PHASE 3: P5b — QA Final (second pass using corrected outputs) ───
+  setPipeDot(6, 'active');
+  setStatus('Executando P5b — QA final sobre outputs corrigidos...', 'var(--accent)');
+
+  const qaBlock = document.createElement('div');
+  qaBlock.className = 'result-block loading';
+  qaBlock.innerHTML = `<div class="result-header"><div class="result-title" style="color:var(--success)"><span class="spinner"></span>&nbsp; P5b — QA Final</div></div><div class="result-text" style="color:var(--text3)">Executando segundo passe de QA sobre os outputs já conciliados...</div>`;
+  container.appendChild(qaBlock);
+
+  const QA_SYSTEM = `Você é um auditor de qualidade de análises de atendimentos de vendas. Você recebeu:
+1. Os outputs originais de P0–P4
+2. O relatório de conciliação do P5a (que já corrigiu inconsistências)
+
+Sua tarefa é fazer um QA FINAL e confirmar se os outputs estão coerentes APÓS as correções do P5a.
+
+Responda EXATAMENTE neste formato:
+
+STATUS FINAL: [✅ QA APROVADO / ⚠️ QA COM RESSALVAS / ❌ QA REPROVADO]
+
+Justificativa: [2-3 frases explicando o status]
+
+Itens verificados:
+• Coerência resultado venda (P0 vs P1 vs P4): [OK / INCONSISTENTE]
+• Coerência produtos (P2 vs P0 e P3): [OK / INCONSISTENTE]
+• Coerência funil (P4 vs P3): [OK / INCONSISTENTE]
+• Evidências sustentadas pela transcrição: [OK / PARCIAL / NÃO]
+
+Ressalvas finais (se houver): [ou "Nenhuma"]`;
+
+  const QA_USER = `Faça o QA final.
+
+OUTPUTS ORIGINAIS P0–P4:
+P0: ${outputs.feedback}
+P1: ${outputs.nao_conversao}
+P3: ${outputs.pontos_fortes}
+P4: ${outputs.funil}
+
+RELATÓRIO DE CONCILIAÇÃO P5a (já aplicou correções):
+${p5Output}
+
+TRANSCRIÇÃO (árbitro final):
+${transcription.substring(0,2000)}`;
+
+  try {
+    const qaOutput = await callClaude(QA_SYSTEM, QA_USER);
+    const isApproved = qaOutput.includes('QA APROVADO');
+    const hasRessalvas = qaOutput.includes('QA COM RESSALVAS');
+
+    setPipeDot(6, 'qa-pass');
+    qaBlock.className = isApproved ? 'result-block qa-pass' : 'result-block corrected';
+    qaBlock.innerHTML = `
+      <div class="result-header">
+        <div class="result-title" style="color:${isApproved ? 'var(--success)' : 'var(--accent4)'}">
+          ${isApproved ? '★ P5b — QA FINAL APROVADO' : hasRessalvas ? '⚠ P5b — QA COM RESSALVAS' : '❌ P5b — QA REPROVADO'}
+        </div>
+        <button class="copy-btn" onclick="navigator.clipboard.writeText(this.dataset.text)" data-text="${escHtml(qaOutput).replace(/"/g,'&quot;')}">Copiar</button>
+      </div>
+      <div class="${isApproved ? 'qa-banner approved' : 'qa-banner adjusted'}">
+        ${isApproved ? '✅ QA APROVADO — todos os outputs são coerentes entre si e com a transcrição original.' : hasRessalvas ? '⚠️ QA COM RESSALVAS — outputs conciliados mas há pontos menores a observar.' : '❌ QA REPROVADO — contradição grave persiste. Revise manualmente.'}
+      </div>
+      <div class="result-text">${escHtml(qaOutput)}</div>`;
+
+    // Save to history
+    const label = currentSource === 'sample'
+      ? `${document.getElementById('sel-client').value} · ${TEST_CASES[document.getElementById('sel-client').value][parseInt(document.getElementById('sel-case').value||'0')]?.label}`
+      : currentSource === 'upload' ? 'Upload externo' : 'Texto colado';
+
+    resultsHistory.push({ ts: new Date().toLocaleString('pt-BR'), label, outputs, p5Output, qaOutput, qaStatus: isApproved ? 'APROVADO' : hasRessalvas ? 'RESSALVAS' : 'REPROVADO' });
+    updateHistory();
+
+    setStatus(`Pipeline concluído — ${isApproved ? '✅ QA APROVADO' : hasRessalvas ? '⚠️ QA COM RESSALVAS' : '❌ QA REPROVADO'}`, isApproved ? 'var(--success)' : 'var(--accent4)');
+  } catch(err) {
+    setPipeDot(6, 'error');
+    qaBlock.className = 'result-block error';
+    qaBlock.innerHTML = `<div class="result-text" style="color:var(--error)">Erro P5b: ${err.message}</div>`;
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '▶ Executar Pipeline Completo';
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// PROMPTS TAB
+// ═══════════════════════════════════════════════════════════════════════
+function renderPromptsList() {
+  const c = document.getElementById('prompts-list');
+  c.innerHTML = editedPrompts.map((p,idx) => `
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAcc(${idx})">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="badge ${p.badge}">${p.label.split('—')[0].trim()}</span>
+          <span style="font-size:13px">${p.label.split('—').slice(1).join('—').trim()}</span>
+        </div>
+        <span id="acc-icon-${idx}" style="color:var(--text3)">›</span>
+      </div>
+      <div class="accordion-body" id="acc-${idx}">
+        <p style="color:var(--text2);font-size:12px;margin-bottom:12px">${p.description}</p>
+        <div style="margin-bottom:8px">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:6px">System Prompt</div>
+          <textarea rows="10" onchange="editedPrompts[${idx}].system=this.value">${p.system}</textarea>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:6px">User Prompt (use {transcription})</div>
+          <textarea rows="4" onchange="editedPrompts[${idx}].user=this.value">${p.user}</textarea>
+        </div>
+      </div>
+    </div>`).join('') + `
+    <div class="accordion" style="margin-top:16px">
+      <div class="accordion-header" onclick="toggleAcc('p5')">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="badge badge-purple">P5</span>
+          <span style="font-size:13px">Conciliação + QA Automático (2 passagens)</span>
+        </div>
+        <span id="acc-icon-p5" style="color:var(--text3)">›</span>
+      </div>
+      <div class="accordion-body" id="acc-p5">
+        <p style="color:var(--text2);font-size:12px;margin-bottom:12px">P5 é executado em 2 fases: P5a concilia e reescreve inconsistências; P5b valida e emite QA APROVADO/RESSALVAS/REPROVADO.</p>
+        <div style="margin-bottom:8px">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:6px">P5a System — Conciliação + Reescrita</div>
+          <textarea rows="22" id="p5-system">${P5_SYSTEM}</textarea>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:6px">P5a User Template</div>
+          <textarea rows="8" id="p5-user">${P5_USER}</textarea>
+        </div>
+      </div>
+    </div>`;
+}
+
+function toggleAcc(idx) {
+  const body = document.getElementById('acc-'+idx);
+  const icon = document.getElementById('acc-icon-'+idx);
+  body.classList.toggle('open');
+  icon.textContent = body.classList.contains('open') ? '∨' : '›';
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// HISTORY
+// ═══════════════════════════════════════════════════════════════════════
+function updateHistory() {
+  const c = document.getElementById('results-history');
+  if (!resultsHistory.length) { c.innerHTML = '<div style="color:var(--text2);font-size:13px">Nenhum teste executado ainda.</div>'; return; }
+  c.innerHTML = [...resultsHistory].reverse().map((r,i) => `
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <span class="badge ${r.qaStatus==='APROVADO' ? 'badge-green' : r.qaStatus==='RESSALVAS' ? 'badge-orange' : 'badge-red'}">${r.qaStatus==='APROVADO'?'✅ QA APROVADO':r.qaStatus==='RESSALVAS'?'⚠️ RESSALVAS':'❌ REPROVADO'}</span>
+        <span style="color:var(--text2);font-size:12px">${r.ts}</span>
+        <span style="font-size:13px">${r.label}</span>
+      </div>
+      ${Object.entries(r.outputs).map(([key,val]) => {
+        const p = PROMPTS.find(p=>p.key===key);
+        return `<div style="margin-bottom:6px"><div style="font-size:10px;font-weight:700;color:${p?.color||'var(--text2)'};text-transform:uppercase;margin-bottom:3px">${p?.label||key}</div><div style="background:var(--bg);padding:8px;border-radius:6px;font-size:11px;color:var(--text2);white-space:pre-wrap;max-height:100px;overflow-y:auto">${escHtml(val.substring(0,400))}${val.length>400?'...':''}</div></div>`;
+      }).join('')}
+      <div style="margin-top:8px"><div style="font-size:10px;font-weight:700;color:#a855f7;text-transform:uppercase;margin-bottom:3px">Resultado P5 + QA</div><div style="background:var(--bg);padding:8px;border-radius:6px;font-size:11px;color:var(--text2);white-space:pre-wrap;max-height:120px;overflow-y:auto">${escHtml(r.qaOutput.substring(0,500))}${r.qaOutput.length>500?'...':''}</div></div>
+    </div>`).join('');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+init();
+</script>
+</body>
+</html>
